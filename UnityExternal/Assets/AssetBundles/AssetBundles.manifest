@@ -1,0 +1,11 @@
+ManifestFileVersion: 0
+CRC: 1725055608
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: mainscene.bundle
+      Dependencies:
+        Dependency_0: textmeshpro.bundle
+    Info_1:
+      Name: textmeshpro.bundle
+      Dependencies: {}
