@@ -1,0 +1,17 @@
+{
+  "Name": "Project: Multiground",
+  "Author": "zombi.dev",
+  "Description": "A whole remake of People Playground's core aspects, including a new multiplayer addition.",
+  "ModVersion": "0.1",
+  "GameVersion": "1.27+",
+  "ThumbnailPath": "thumb.png",
+  "EntryPoint": "ProjectMultiground.Entrypoint",
+  "Tags": [
+    "Fun",
+    "Multiplayer",
+    "Modern"
+  ],
+  "Scripts": [
+    "main.cs"
+  ]
+}
