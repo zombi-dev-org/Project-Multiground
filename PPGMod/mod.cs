@@ -2,7 +2,7 @@
 using System.IO;
 using System.Reflection;
 
-namespace PMGLoader
+namespace PMGInjector
 {
     public class Entrypoint
     {

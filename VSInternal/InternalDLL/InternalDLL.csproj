@@ -468,6 +468,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>ReferenceDLLs\UnityEngine.TLSModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>ReferenceDLLs\UnityEngine.UI.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UIElementsModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>ReferenceDLLs\UnityEngine.UIElementsModule.dll</HintPath>

@@ -1,12 +1,15 @@
-﻿using JetBrains.Annotations;
+﻿using System;
+using JetBrains.Annotations;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable SuggestVarOrType_BuiltInTypes
@@ -25,14 +28,29 @@ namespace ProjectMultiground
         {
             Debug.Log("[OnLoad] Injected!");
 
-            // load core assetbundles
-            await LoadCoreAssetBundles(MetaLocation);
-
-            // load LoadingMenuScene
-            Debug.Log("[OnLoad] Loading LoadingMenuScene...");
-            AsyncOperation sceneLoad = SceneManager.LoadSceneAsync(bundles["loadingmenuscene"].GetAllScenePaths()[0], LoadSceneMode.Additive);
-            sceneLoad.completed += async _ =>
+            try
             {
+                // load core assetbundles
+                await LoadCoreAssetBundles(MetaLocation);
+
+                // load LoadingMenuScene
+                Debug.Log("[OnLoad] Loading LoadingMenuScene...");
+                if (!bundles.ContainsKey("loadingmenuscene"))
+                {
+                    throw new RowNotInTableException("[OnLoad] Failed to find loadingmenuscene bundle in bundles!");
+                }
+
+                string[] scenePaths = bundles["loadingmenuscene"].GetAllScenePaths();
+                if (scenePaths.Length < 1)
+                {
+                    throw new IndexOutOfRangeException("[OnLoad] No scenes found in loadingmenuscene bundle!");
+                }
+
+                Debug.Log($"[OnLoad] Loading scene from path: {scenePaths[0]}");
+                AsyncOperation sceneLoad = SceneManager.LoadSceneAsync(scenePaths[0], LoadSceneMode.Additive);
+                sceneLoad.completed += operation => { Debug.Log("[OnLoad] LoadingMenuScene load completed!"); };
+                await LoadingInterface.AwaitOperation(sceneLoad);
+
                 LoadingInterface.UpdateLoadingScreen("Preparing...", "Waiting on script...", 0);
 
                 // load rest of AssetBundles
@@ -40,11 +58,25 @@ namespace ProjectMultiground
 
                 // load MenuScene
                 Debug.Log("[OnLoad] Loading MenuScene...");
-                AsyncOperation sceneLoad = SceneManager.LoadSceneAsync(bundles["menuscene"].GetAllScenePaths()[0], LoadSceneMode.Additive);
-                await LoadingInterface.UpdateLoadingScreen("Preparing...", "Loading UI...", sceneLoad);
+                if (!bundles.ContainsKey("menuscene"))
+                {
+                    throw new RowNotInTableException("[OnLoad] Failed to find menuscene bundle!");
+                }
+
+                scenePaths = bundles["menuscene"].GetAllScenePaths();
+                if (scenePaths.Length < 1)
+                {
+                    throw new IndexOutOfRangeException("[OnLoad] No scenes found in menuscene bundle!");
+                }
+                AsyncOperation menuSceneLoad = SceneManager.LoadSceneAsync(scenePaths[0], LoadSceneMode.Additive);
+                await LoadingInterface.UpdateLoadingScreen("Preparing...", "Loading UI...", menuSceneLoad);
 
                 Object.Destroy(GameObject.Find("LoadingMainUI"));
-            };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"[OnLoad] Exception occurred: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         public static async Task LoadCoreAssetBundles(string MetaLocation)
@@ -54,29 +86,33 @@ namespace ProjectMultiground
             {
                 string bundlePath = Path.Combine(MetaLocation, "Assets", "Bundles",
                     $"{bundleName.ToLower()}.assetbundle");
-                AssetBundleCreateRequest bundle = AssetBundle.LoadFromFileAsync(bundlePath);
-                bundle.completed += _ =>
+
+                Debug.Log($"[LoadCoreAssetBundles] Loading core AssetBundle from {bundlePath}");
+
+                string key = Path.GetFileNameWithoutExtension(bundlePath).ToLower();
+                if (!bundles.ContainsKey(key))
                 {
-                    if (bundle == null)
+                    AssetBundleCreateRequest bundleRequest = AssetBundle.LoadFromFileAsync(bundlePath);
+                    await LoadingInterface.AwaitOperation(bundleRequest);
+
+                    AssetBundle loadedBundle = bundleRequest.assetBundle;
+                    if (loadedBundle == null)
                     {
                         throw new FileLoadException($"[LoadCoreAssetBundles] Failed to load core AssetBundle from {bundlePath}!");
                     }
 
-                    string key = Path.GetFileNameWithoutExtension(bundlePath).ToLower();
-                    if (!bundles.ContainsKey(key))
-                    {
-                        bundles.Add(key, bundle.assetBundle);
-                        Debug.Log($"[LoadCoreAssetBundles] Loaded core AssetBundle '{key}' from {bundlePath}");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[LoadCoreAssetBundles] Core AssetBundle with key '{key}' is already loaded. Skipping...");
-                    }
-                };
+                    bundles.Add(key, loadedBundle);
+                    Debug.Log($"[LoadCoreAssetBundles] Loaded core AssetBundle '{key}' from {bundlePath}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[LoadCoreAssetBundles] Core AssetBundle with key '{key}' is already loaded. Skipping...");
+                }
+
             }
         }
 
-        public async static Task LoadAllAssetBundles(string MetaLocation, [CanBeNull] string title, [CanBeNull] string status)
+        public static async Task LoadAllAssetBundles(string MetaLocation, [CanBeNull] string title, [CanBeNull] string status)
         {
             Debug.Log("[LoadAllAssetBundles] Starting to load remaining AssetBundles...");
             string[] bundlePaths = Directory.GetFiles(Path.Combine(MetaLocation, "Assets", "Bundles"),
@@ -86,23 +122,25 @@ namespace ProjectMultiground
             foreach (string bundlePath in bundlePaths)
             {
                 i++;
-                AssetBundleCreateRequest bundle = AssetBundle.LoadFromFileAsync(bundlePath);
-                if (!string.IsNullOrEmpty(status))
-                {
-                    status += $" ({i}/{length})";
-                }
-                await LoadingInterface.UpdateLoadingScreen(title, status, bundle);
+                Debug.Log($"[LoadCoreAssetBundles] Loading core AssetBundle from {bundlePath}");
 
-                string key = Path.GetFileNameWithoutExtension(bundlePath);
-                if (bundle == null || !string.IsNullOrEmpty(key))
-                {
-                    Debug.LogWarning($"[LoadAllAssetBundles] Failed to load AssetBundle {i}/{length}, '{key}', from {bundlePath}!");
-                    continue;
-                }
-                key = key.ToLower();
-
+                string key = Path.GetFileNameWithoutExtension(bundlePath).ToLower();
                 if (!bundles.ContainsKey(key))
                 {
+                    AssetBundleCreateRequest bundle = AssetBundle.LoadFromFileAsync(bundlePath);
+                    string newStatus = status;
+                    if (!string.IsNullOrEmpty(status))
+                    {
+                        newStatus += $" ({i}/{length})";
+                    }
+                    await LoadingInterface.UpdateLoadingScreen(title, newStatus, bundle);
+
+                    if (bundle == null)
+                    {
+                        Debug.LogWarning($"[LoadAllAssetBundles] Failed to load AssetBundle {i}/{length}, '{key}', from {bundlePath}!");
+                        continue;
+                    }
+
                     bundles.Add(key, bundle.assetBundle);
                     Debug.Log($"[LoadAllAssetBundles] Loaded AssetBundle {i}/{length}, '{key}', from {bundlePath}");
                 }
@@ -114,21 +152,36 @@ namespace ProjectMultiground
         }
     }
 
-    public class LoadingInterface
+    internal class LoadingInterface
     {
-        public static void SetActive(bool active)
+        internal static void SetActive(bool active)
         {
             GameObject LoadingMainUI = GameObject.Find("LoadingMainUI");
             LoadingMainUI.SetActive(active);
         }
 
-        public static void UpdateLoadingScreen(string title)
+        internal static async Task AwaitOperation(AssetBundleCreateRequest operation)
+        {
+            while (!operation.isDone)
+            {
+                await Task.Delay(50);
+            }
+        }
+        internal static async Task AwaitOperation(AsyncOperation operation)
+        {
+            while (!operation.isDone)
+            {
+                await Task.Delay(50);
+            }
+        }
+
+        internal static void UpdateLoadingScreen(string title)
         {
             TextMeshProUGUI text = GameObject.Find("LoadingMainUI/LoadingPanel/Title")
                 .GetComponent<TextMeshProUGUI>();
             text.text = title;
         }
-        public static void UpdateLoadingScreen([CanBeNull] string title, [CanBeNull] string status)
+        internal static void UpdateLoadingScreen([CanBeNull] string title, [CanBeNull] string status)
         {
             if (!string.IsNullOrEmpty(title))
             {
@@ -143,12 +196,12 @@ namespace ProjectMultiground
                 text.text = status;
             }
         }
-        public static void UpdateLoadingScreen(float proc)
+        internal static void UpdateLoadingScreen(float proc)
         {
             Slider slider = GameObject.Find("LoadingMainUI/LoadingPanel/Slider").GetComponent<Slider>();
             slider.value = proc;
         }
-        public static async Task UpdateLoadingScreen(AsyncOperation operation)
+        internal static async Task UpdateLoadingScreen(AsyncOperation operation)
         {
             while (!operation.isDone)
             {
@@ -157,7 +210,7 @@ namespace ProjectMultiground
             }
             UpdateLoadingScreen(1.0f);
         }
-        public static async Task UpdateLoadingScreen(AssetBundleCreateRequest operation)
+        internal static async Task UpdateLoadingScreen(AssetBundleCreateRequest operation)
         {
             while (!operation.isDone)
             {
@@ -167,22 +220,22 @@ namespace ProjectMultiground
             UpdateLoadingScreen(1.0f);
         }
 
-        public static async Task UpdateLoadingScreen(string title, AsyncOperation operation)
+        internal static async Task UpdateLoadingScreen(string title, AsyncOperation operation)
         {
             UpdateLoadingScreen(title);
             await UpdateLoadingScreen(operation);
         }
-        public static async Task UpdateLoadingScreen([CanBeNull] string title, [CanBeNull] string status, AsyncOperation operation)
+        internal static async Task UpdateLoadingScreen([CanBeNull] string title, [CanBeNull] string status, AsyncOperation operation)
         {
             UpdateLoadingScreen(title, status);
             await UpdateLoadingScreen(operation);
         }
-        public static void UpdateLoadingScreen([CanBeNull] string title, [CanBeNull] string status, float proc)
+        internal static void UpdateLoadingScreen([CanBeNull] string title, [CanBeNull] string status, float proc)
         {
             UpdateLoadingScreen(title, status);
             UpdateLoadingScreen(proc);
         }
-        public static void UpdateLoadingScreen(string title, float proc)
+        internal static void UpdateLoadingScreen(string title, float proc)
         {
             UpdateLoadingScreen(title);
             UpdateLoadingScreen(proc);
