@@ -559,7 +559,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="main.cs" />
+    <None Include="mod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="temp.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

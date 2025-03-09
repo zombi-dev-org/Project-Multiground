@@ -1,5 +1,5 @@
 ManifestFileVersion: 0
-CRC: 1558095094
+CRC: 2787010387
 AssetBundleManifest:
   AssetBundleInfos:
     Info_0:
@@ -7,5 +7,9 @@ AssetBundleManifest:
       Dependencies: {}
     Info_1:
       Name: menuscene.assetbundle
+      Dependencies:
+        Dependency_0: textmeshpro.assetbundle
+    Info_2:
+      Name: loadingmenuscene.assetbundle
       Dependencies:
         Dependency_0: textmeshpro.assetbundle
