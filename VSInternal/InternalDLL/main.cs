@@ -34,7 +34,8 @@ namespace ProjectMultiground
             }
 
             // load MainScene
-            SceneManager.LoadSceneAsync("MainScene", LoadSceneMode.Additive);
+            string[] scenePath = bundles["mainscene"].GetAllScenePaths();
+            SceneManager.LoadSceneAsync(scenePath[0], LoadSceneMode.Additive);
         }
     }
 }

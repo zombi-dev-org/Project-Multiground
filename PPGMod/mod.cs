@@ -6,7 +6,7 @@ namespace PMGLoader
 {
     public class Entrypoint
     {
-        public static void Main()
+        public static void OnLoad()
         {
             // load all library DLLs
             foreach (string dll in Directory.GetFiles(Path.Combine(ModAPI.Metadata.MetaLocation, "Assets", "DLLs"), "*.dll"))
@@ -22,7 +22,7 @@ namespace PMGLoader
                 }
             }
             // load main DLL
-            Assembly.Load(File.ReadAllBytes(Path.Combine(ModAPI.Metadata.MetaLocation, "Assets", "PMG.Internal.dll"))).GetType("ProjectMultiground.Entrypoint").GetMethod("OnLoad")?.Invoke(null, new object[] { ModAPI.Metadata.MetaLocation });
+            Assembly.Load(File.ReadAllBytes(Path.Combine(ModAPI.Metadata.MetaLocation, "PMG.Internal.dll"))).GetType("ProjectMultiground.Entrypoint").GetMethod("OnLoad")?.Invoke(null, new object[] { ModAPI.Metadata.MetaLocation });
         }
     }
 }
