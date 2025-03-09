@@ -5,6 +5,7 @@ using System.Data;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using ProjectMultiground.Scripts;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -48,10 +49,10 @@ namespace ProjectMultiground
 
                 Debug.Log($"[OnLoad] Loading scene from path: {scenePaths[0]}");
                 AsyncOperation sceneLoad = SceneManager.LoadSceneAsync(scenePaths[0], LoadSceneMode.Additive);
-                sceneLoad.completed += operation => { Debug.Log("[OnLoad] LoadingMenuScene load completed!"); };
                 await LoadingInterface.AwaitOperation(sceneLoad);
 
                 LoadingInterface.UpdateLoadingScreen("Preparing...", "Waiting on script...", 0);
+                GameObject.Find("LoadingMainUI/LoadingPanel/Slider/Fill Area/Fill").AddComponent<RainbowLoadingBar>();
 
                 // load rest of AssetBundles
                 await LoadAllAssetBundles(MetaLocation, "Preparing...", "Loading assets...");
@@ -72,6 +73,8 @@ namespace ProjectMultiground
                 await LoadingInterface.UpdateLoadingScreen("Preparing...", "Loading UI...", menuSceneLoad);
 
                 Object.Destroy(GameObject.Find("LoadingMainUI"));
+
+                await AttachScripts();
             }
             catch (Exception ex)
             {
@@ -150,8 +153,12 @@ namespace ProjectMultiground
                 }
             }
         }
-    }
 
+        public static async Task AttachScripts()
+        {
+            GameObject PMGObject = GameObject.Find("PMG");
+        }
+    }
     internal class LoadingInterface
     {
         internal static void SetActive(bool active)

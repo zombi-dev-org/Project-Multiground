@@ -562,8 +562,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="main.cs" />
+    <Compile Include="loader.cs" />
     <None Include="mod.cs" />
+    <Compile Include="Scripts\RainbowLoadingBar.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="temp.cs" />
   </ItemGroup>
@@ -708,5 +709,6 @@
     <Content Include="ReferenceDLLs\UnityEngine.XRModule.dll" />
     <Content Include="ReferenceDLLs\WatsonTcp.dll" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
