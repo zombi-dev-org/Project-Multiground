@@ -1,11 +1,11 @@
 ManifestFileVersion: 0
-CRC: 1725055608
+CRC: 2980026150
 AssetBundleManifest:
   AssetBundleInfos:
     Info_0:
-      Name: mainscene.bundle
+      Name: mainscene.assetbundle
       Dependencies:
-        Dependency_0: textmeshpro.bundle
+        Dependency_0: textmeshpro.assetbundle
     Info_1:
-      Name: textmeshpro.bundle
+      Name: textmeshpro.assetbundle
       Dependencies: {}

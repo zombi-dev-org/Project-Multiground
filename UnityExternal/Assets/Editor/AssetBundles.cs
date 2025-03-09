@@ -11,6 +11,18 @@ public class CreateAssetBundles
         {
             Directory.CreateDirectory(assetBundleDirectory);
         }
+        
+        // Delete all files and subdirectories in the directory
+        DirectoryInfo di = new DirectoryInfo(assetBundleDirectory);
+        foreach (FileInfo file in di.GetFiles())
+        {
+            file.Delete();
+        }
+        foreach (DirectoryInfo dir in di.GetDirectories())
+        {
+            dir.Delete(true);
+        }
+        
         BuildPipeline.BuildAssetBundles(assetBundleDirectory,
             BuildAssetBundleOptions.None,
             BuildTarget.StandaloneWindows);
