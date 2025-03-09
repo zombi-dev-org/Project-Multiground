@@ -1,9 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
-using UnityEngine;
 
-namespace ProjectMultiground
+namespace PMGLoader
 {
     public class Entrypoint
     {
@@ -23,7 +22,7 @@ namespace ProjectMultiground
                 }
             }
             // load main DLL
-            Assembly.Load(File.ReadAllBytes(Path.Combine(ModAPI.Metadata.MetaLocation, "Assets", "PMG.Internal.dll"))).GetType("ProjectMultiground.Entrypoint").GetMethod("OnLoad")?.Invoke(null, new object[] { typeof(ModAPI) });
+            Assembly.Load(File.ReadAllBytes(Path.Combine(ModAPI.Metadata.MetaLocation, "Assets", "PMG.Internal.dll"))).GetType("ProjectMultiground.Entrypoint").GetMethod("OnLoad")?.Invoke(null, new object[] { ModAPI.Metadata.MetaLocation });
         }
     }
 }

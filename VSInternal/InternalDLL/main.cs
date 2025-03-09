@@ -1,12 +1,40 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
-namespace InternalDLL
+namespace ProjectMultiground
 {
-    public class main
+    public class Entrypoint
     {
+        public static Dictionary<string, AssetBundle> bundles = new Dictionary<string, AssetBundle>();
+        public static void OnLoad(string MetaLocation)
+        {
+            // load AssetBundles
+            foreach (string bundlePath in Directory.GetFiles(Path.Combine(MetaLocation, "Assets", "Bundles"), "*.assetbundle"))
+            {
+                AssetBundle bundle = AssetBundle.LoadFromFile(bundlePath);
+                if (bundle == null)
+                {
+                    Debug.Log($"Failed to load AssetBundle from {bundlePath}!");
+                    continue;
+                }
+
+                string key = Path.GetFileNameWithoutExtension(bundlePath).ToLower();
+                if (!bundles.ContainsKey(key))
+                {
+                    bundles.Add(key, bundle);
+                    Debug.Log($"Loaded AssetBundle '{key}' from {bundlePath}");
+                }
+                else
+                {
+                    Debug.LogWarning($"AssetBundle with key '{key}' is already loaded.");
+                }
+            }
+
+            // load MainScene
+            SceneManager.LoadSceneAsync("MainScene", LoadSceneMode.Additive);
+        }
     }
 }
