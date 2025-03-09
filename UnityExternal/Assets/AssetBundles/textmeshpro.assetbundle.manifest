@@ -1,0 +1,61 @@
+ManifestFileVersion: 0
+CRC: 932966345
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 0edd4d6741f603c4a5db6d58ddc88d9d
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 6d74ed36357d41c23d76a778ecdcf08c
+HashAppended: 0
+ClassTypes:
+- Class: 21
+  Script: {instanceID: 0}
+- Class: 28
+  Script: {instanceID: 0}
+- Class: 48
+  Script: {instanceID: 0}
+- Class: 49
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: 71c1514a6bd24e1e882cebbe1904ce04, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: ab2114bdc8544297b417dfefe9f1e410, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: 2705215ac5b84b70bacc50632be6e391, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: 84a92b25f83d49b9bc132d206b370281, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+- Class: 128
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/TextMesh Pro/Shaders/TMP_SDF Overlay.shader
+- Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Drop Shadow.mat
+- Assets/TextMesh Pro/Sprites/EmojiOne.json
+- Assets/TextMesh Pro/Sprites/EmojiOne.png
+- Assets/TextMesh Pro/Shaders/TMP_SDF SSD.shader
+- Assets/TextMesh Pro/Shaders/TMP_SDF.shader
+- Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt
+- Assets/TextMesh Pro/Resources/Sprite Assets/EmojiOne.asset
+- Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile Masking.shader
+- Assets/TextMesh Pro/Resources/TMP Settings.asset
+- Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader
+- Assets/TextMesh Pro/Shaders/TMP_Sprite.shader
+- Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt
+- Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset
+- Assets/TextMesh Pro/Shaders/TMP_Bitmap-Custom-Atlas.shader
+- Assets/TextMesh Pro/Shaders/TMP_SDF-Surface-Mobile.shader
+- Assets/TextMesh Pro/Shaders/TMP_Bitmap.shader
+- Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat
+- Assets/TextMesh Pro/Shaders/TMP_Bitmap-Mobile.shader
+- Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile Overlay.shader
+- Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile SSD.shader
+- Assets/TextMesh Pro/Shaders/TMP_SDF-Surface.shader
+- Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset
+- Assets/TextMesh Pro/Resources/Style Sheets/Default Style Sheet.asset
+- Assets/TextMesh Pro/Resources/LineBreaking Leading Characters.txt
+- Assets/TextMesh Pro/Resources/LineBreaking Following Characters.txt
+- Assets/TextMesh Pro/Fonts/LiberationSans.ttf
+Dependencies: []

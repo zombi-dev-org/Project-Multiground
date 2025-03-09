@@ -5,13 +5,13 @@
   "ModVersion": "0.1",
   "GameVersion": "1.27+",
   "ThumbnailPath": "thumb.png",
-  "EntryPoint": "ProjectMultiground.Entrypoint",
+  "EntryPoint": "PMGLoader.Entrypoint",
   "Tags": [
     "Fun",
     "Multiplayer",
     "Modern"
   ],
   "Scripts": [
-    "main.cs"
+    "mod.cs"
   ]
 }

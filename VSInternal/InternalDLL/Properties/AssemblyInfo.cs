@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("InternalDLL")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("People Multiground - Internal DLL")]
+[assembly: AssemblyDescription("Internal DLL that is loaded after game init.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("InternalDLL")]
-[assembly: AssemblyCopyright("Copyright ©  2025")]
+[assembly: AssemblyCompany("zombi.dev")]
+[assembly: AssemblyProduct("People Multiground")]
+[assembly: AssemblyCopyright("Copyright © 2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
