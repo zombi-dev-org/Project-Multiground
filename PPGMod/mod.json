@@ -5,7 +5,7 @@
   "ModVersion": "0.1",
   "GameVersion": "1.27+",
   "ThumbnailPath": "thumb.png",
-  "EntryPoint": "PMGLoader.Entrypoint",
+  "EntryPoint": "PMGInjector.Entrypoint",
   "Tags": [
     "Fun",
     "Multiplayer",

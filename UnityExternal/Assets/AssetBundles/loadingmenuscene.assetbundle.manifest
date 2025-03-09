@@ -1,17 +1,15 @@
 ManifestFileVersion: 0
-CRC: 1272874527
+CRC: 916493258
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 6904cfd7588ef4f79300ed02537ae872
+    Hash: 51b93a21247962ac12cd5b0fe209555c
   TypeTreeHash:
     serializedVersion: 2
-    Hash: acd64cc1f3110628c7d46edc13cce0f0
+    Hash: c39b0bb69e0884c8a12d65f87a3f27b2
 HashAppended: 0
 ClassTypes:
 - Class: 1
-  Script: {instanceID: 0}
-- Class: 4
   Script: {instanceID: 0}
 - Class: 21
   Script: {instanceID: 0}
@@ -21,6 +19,12 @@ ClassTypes:
   Script: {instanceID: 0}
 - Class: 104
   Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: 67db9e8f0e2ae9c40bc1e2b64352a6b4, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: cfabb0440166ab443bba8876756fdfa9, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 71c1514a6bd24e1e882cebbe1904ce04, type: 3}
 - Class: 114
@@ -37,6 +41,8 @@ ClassTypes:
   Script: {instanceID: 0}
 - Class: 196
   Script: {instanceID: 0}
+- Class: 213
+  Script: {instanceID: 0}
 - Class: 222
   Script: {instanceID: 0}
 - Class: 223
@@ -45,6 +51,6 @@ ClassTypes:
   Script: {instanceID: 0}
 SerializeReferenceClassIdentifiers: []
 Assets:
-- Assets/Scenes/MenuScene.unity
+- Assets/Scenes/LoadingMenuScene.unity
 Dependencies:
 - D:/Files/coding/ProjectMultiground/UnityExternal/Assets/AssetBundles/textmeshpro.assetbundle
