@@ -1,5 +1,5 @@
-trigger:
-- latest
+trigger: none
+pr: none
 
 pool:
   name: Default
@@ -8,11 +8,6 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Debug'
-  # Folder where pipeline artifacts (build outputs) are placed.
-  pipelineFolder: '$(Build.SourcesDirectory)/PipelineOutput'
-  # Email and user for git commit. Defaults to built-in variables if not provided.
-  GitHubEmail: $(GitHubEmail)
-  GitHubUser: $(GitHubUser)
 
 steps:
 ##############################
@@ -65,7 +60,7 @@ steps:
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Build Artifacts (Pipeline Folder) (5/9)'
   inputs:
-    PathtoPublish: '$(pipelineFolder)'
+    PathtoPublish: '$(Build.SourcesDirectory)'
     ArtifactName: 'drop'
     publishLocation: 'Container'
 
@@ -180,16 +175,9 @@ steps:
       
       echo "Checking out branch: $(Build.SourceBranchName)"
       git checkout $(Build.SourceBranchName)
-      
-      # Use provided GitHub email and user if set; otherwise fall back to built-in variables.
-      EMAIL="${GitHubEmail}"
-      if [ -z "$EMAIL" ]; then
-         EMAIL=$(Build.RequestedForEmail)
-      fi
-      USER="${GitHubUser}"
-      if [ -z "$USER" ]; then
-         USER=$(Build.RequestedFor)
-      fi
+
+      EMAIL="${Build.RequestedForEmail}"
+      USER="${Build.RequestedFor}"
       
       echo "Configuring git with email: $EMAIL and user: $USER"
       git config --global user.email "$EMAIL"
