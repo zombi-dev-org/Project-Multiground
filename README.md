@@ -2,12 +2,13 @@
 
 ## This is the GitHub repo for the People Playground mod: "Project: Multiground"
 
-## Latest commit: [[latest commit ID]](latest commit link) [[artifacts]](latest commit artifact's link) [[release]](latest commit's release link)
+## Latest commit: (THESE ARE PLACEHOLDERS UNTIL MICROSOFT ACCEPTS PARARELISM)
+- [[latest commit ID]](latest commit link) [[artifacts]](latest commit artifact's link) [[release]](latest commit's release link)
 
-### Versions:
-- [main](https://github.com/zombi-dev-org/Project-Multiground/tree/main) [release](example.com) - stable (recommended)
-- [latest](https://github.com/zombi-dev-org/Project-Multiground/tree/latest) [release](latest commit release link) - latest
-- [[latest commit ID]](latest commit link) [artifacts](latest commit's artifacts)
+### Versions: (THESE ARE PLACEHOLDERS UNTIL MICROSOFT ACCEPTS PARARELISM)
+- [[main]](https://github.com/zombi-dev-org/Project-Multiground/tree/main) ~~[release]~~ *(none yet)* - stable (recommended)
+- [[latest]](https://github.com/zombi-dev-org/Project-Multiground/tree/latest) [[release]](latest commit release link) - latest
+- [[latest commit ID]](latest commit link) [[artifacts]](latest commit's artifacts) [[release]](latest commit release link)
 
 - **Feel free to improve my code, and submit a pull request! I'll try to look at it as soon as I can!**
 
