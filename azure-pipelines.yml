@@ -2,6 +2,7 @@ trigger:
 - latest
 
 pool:
+  name: Default
   vmImage: 'windows-latest'
 
 variables:
