@@ -17,16 +17,27 @@ variables:
   GitHubUser: $(GitHubUser)
 
 steps:
+##############################
+# Step 1: Install NuGet Tool #
+##############################
 - task: NuGetToolInstaller@1
   inputs:
     versionSpec: 
     checkLatest: true
 
+#################################
+# Step 2: Restore NuGet Packages #
+#################################
 - task: NuGetCommand@2
+  displayName: 'Restore NuGet Packages'
   inputs:
     restoreSolution: '$(solution)'
 
+##########################
+# Step 3: Build Solution #
+##########################
 - task: VSBuild@1
+  displayName: 'Build Solution'
   inputs:
     solution: '$(solution)'
     vsVersion: '17.0'
@@ -37,16 +48,21 @@ steps:
     createLogFile: true
     logFileVerbosity: 'detailed'
 
-# Run tests only if RunTests is true
+#############################################
+# Step 4: Run Tests (Conditional Execution) #
+#############################################
 - task: VSTest@2
+  displayName: 'Run Tests (if RunTests is true)'
   condition: eq(variables['RunTests'], 'true')
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
-# Push NuGet package(s) to your Azure Artifacts feed
+############################################################
+# Step 5: Push NuGet Packages to Azure Artifacts Feed      #
+############################################################
 - task: NuGetCommand@2
-  displayName: 'Push NuGet packages to Azure Artifacts'
+  displayName: 'Push NuGet Packages to Azure Artifacts'
   inputs:
     command: 'push'
     packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
@@ -54,14 +70,21 @@ steps:
     publishVstsFeed: '4a801188-824e-4a83-b4e5-7fdcc78c6c71/05698a6e-affb-4164-b5f8-c68b8e1a2c92'
     allowPackageConflicts: true
 
-# Publish build artifacts from the pipeline folder (separate from your provided artifact link)
+############################################################
+# Step 6: Publish Build Artifacts (Pipeline Output Folder)   #
+############################################################
 - task: PublishBuildArtifacts@1
+  displayName: 'Publish Build Artifacts (Pipeline Folder)'
   inputs:
     PathtoPublish: '$(pipelineFolder)'
     ArtifactName: 'drop'
+    publishLocation: 'Container'
 
-# Create a GitHub Release with the tag "Pre-release"
+############################################################
+# Step 7: Create GitHub Release (Pre-release Tag)          #
+############################################################
 - task: GitHubRelease@1
+  displayName: 'Create GitHub Release (Pre-release)'
   inputs:
     gitHubConnection: 'zombi-dev-org'
     repositoryName: '$(Build.Repository.Name)'
@@ -69,20 +92,86 @@ steps:
     target: '$(Build.SourceVersion)'
     tagSource: 'gitTag'
     title: 'Release $(Build.SourceVersion)'
+    assets: '$(Build.ArtifactStagingDirectory)/**/*'
     isPreRelease: true
     changeLogCompareToRelease: 'lastFullRelease'
     changeLogType: 'commitBased'
-    assets: '$(Build.ArtifactStagingDirectory)/**/*'
 
+############################################################
+# Step 8: Publish Pipeline Artifact (Build Workspace)      #
+############################################################
 - task: PublishPipelineArtifact@1
+  displayName: 'Publish Pipeline Artifact'
   inputs:
     targetPath: '$(Pipeline.Workspace)'
     artifact: '$(Build.SourceVersion) - $(Build.BuildId)'
     publishLocation: 'pipeline'
 
-# Update README.md with dynamic build info using automatically retrieved email and user
+#########################################################################################
+# Step 9: Package Files, Calculate Hashes and Prepare Artifacts (Custom API steps removed) #
+#########################################################################################
 - task: Bash@3
-  displayName: 'Update README.md'
+  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Bash 1)'
+  inputs:
+    targetType: 'inline'
+    script: |
+      echo "=============================================="
+      echo "Starting file hash calculation and packaging..."
+      echo "=============================================="
+      
+      # Retrieve pipeline variables
+      COMMIT_ID=$(Build.SourceVersion)
+      BUILD_ID=$(Build.BuildId)
+      COMMITTER=$(Build.RequestedFor)
+      
+      # Define target directory (ensure it exists)
+      TARGET_DIR="$(Build.SourcesDirectory)/PipelineOutput"
+      echo "Ensuring target directory exists: $TARGET_DIR"
+      mkdir -p "$TARGET_DIR"
+      
+      # Define ZIP and HASH file names including the commit ID
+      ZIP_FILE="build_${COMMIT_ID}.zip"
+      HASH_FILE="hashes_${COMMIT_ID}.txt"
+      
+      echo "Creating hash file: $HASH_FILE with commit ID at the top..."
+      echo "Commit ID: ${COMMIT_ID}" > "$TARGET_DIR/$HASH_FILE"
+      
+      echo "Calculating SHA-256 hashes for all files in $TARGET_DIR..."
+      # Loop over all files except the ZIP and HASH file
+      find "$TARGET_DIR" -type f ! -name "$ZIP_FILE" ! -name "$HASH_FILE" | while read FILE; do
+         FILE_HASH=$(sha256sum "$FILE" | awk '{print $1}')
+         echo "$(basename "$FILE"): $FILE_HASH" >> "$TARGET_DIR/$HASH_FILE"
+         echo "Hashed file: $(basename "$FILE") -> $FILE_HASH"
+      done
+      
+      echo "Zipping up all files in $TARGET_DIR (excluding $ZIP_FILE and $HASH_FILE)..."
+      cd "$TARGET_DIR"
+      zip -r "$ZIP_FILE" . -x "$ZIP_FILE" "$HASH_FILE"
+      
+      echo "Calculating SHA-256 hash for ZIP file: $ZIP_FILE..."
+      ZIP_HASH=$(sha256sum "$ZIP_FILE" | awk '{print $1}')
+      echo "ZIP file hash: $ZIP_HASH" >> "$TARGET_DIR/$HASH_FILE"
+      
+      echo "=============================================="
+      echo "Packaging complete. Files created:"
+      echo "ZIP File: $ZIP_FILE"
+      echo "Hash File: $HASH_FILE"
+      echo "Contents of Hash File:"
+      cat "$TARGET_DIR/$HASH_FILE"
+      echo "=============================================="
+      
+      # Note: Custom API and upload endpoint steps have been temporarily removed.
+      echo "Custom upload and API reporting steps are currently disabled."
+      
+      echo "=============================================="
+      echo "Finished packaging and preparing artifacts."
+      echo "=============================================="
+
+#########################################################################################
+# Step 10: Update README.md with Build Info and Commit Changes                         #
+#########################################################################################
+- task: Bash@3
+  displayName: 'Update README.md with Build Info (Bash 2)'
   inputs:
     targetType: 'inline'
     script: |
@@ -100,6 +189,7 @@ steps:
       sed -i "s|\[\[latest commit artifact's link\]\]|${ARTIFACT_LINK}|g" README.md
       sed -i "s|\[\[latest commit release link\]\]|${RELEASE_LINK}|g" README.md
       
+      echo "Checking out branch: $(Build.SourceBranchName)"
       git checkout $(Build.SourceBranchName)
       
       # Use provided GitHub email and user if set; otherwise fall back to built-in variables.
@@ -112,6 +202,7 @@ steps:
          USER=$(Build.RequestedFor)
       fi
       
+      echo "Configuring git with email: $EMAIL and user: $USER"
       git config --global user.email "$EMAIL"
       git config --global user.name "$USER"
       
@@ -119,4 +210,4 @@ steps:
       git commit -m "Update README.md for ${COMMIT_ID}"
       git push origin $(Build.SourceBranchName)
       
-      echo "Finished!"
+      echo "README.md updated and changes pushed."
