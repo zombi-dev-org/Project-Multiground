@@ -10,8 +10,6 @@ variables:
   buildConfiguration: 'Debug'
   # Folder where pipeline artifacts (build outputs) are placed.
   pipelineFolder: '$(Build.SourcesDirectory)/PipelineOutput'
-  # Set to 'true' to run tests.
-  RunTests: 'false'
   # Email and user for git commit. Defaults to built-in variables if not provided.
   GitHubEmail: $(GitHubEmail)
   GitHubUser: $(GitHubUser)
@@ -21,15 +19,16 @@ steps:
 # Step 1: Install NuGet Tool #
 ##############################
 - task: NuGetToolInstaller@1
+  displayName: 'Restore NuGet Packages (1/9)'
   inputs:
     versionSpec: 
     checkLatest: true
 
-#################################
+##################################
 # Step 2: Restore NuGet Packages #
-#################################
+##################################
 - task: NuGetCommand@2
-  displayName: 'Restore NuGet Packages'
+  displayName: 'Restore NuGet Packages (2/9)'
   inputs:
     restoreSolution: '$(solution)'
 
@@ -37,7 +36,7 @@ steps:
 # Step 3: Build Solution #
 ##########################
 - task: VSBuild@1
-  displayName: 'Build Solution'
+  displayName: 'Build Solution (3/9)'
   inputs:
     solution: '$(solution)'
     vsVersion: '17.0'
@@ -48,21 +47,11 @@ steps:
     createLogFile: true
     logFileVerbosity: 'detailed'
 
-#############################################
-# Step 4: Run Tests (Conditional Execution) #
-#############################################
-- task: VSTest@2
-  displayName: 'Run Tests (if RunTests is true)'
-  condition: eq(variables['RunTests'], 'true')
-  inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
-
-############################################################
-# Step 5: Push NuGet Packages to Azure Artifacts Feed      #
-############################################################
+#######################################################
+# Step 4: Push NuGet Packages to Azure Artifacts Feed #
+#######################################################
 - task: NuGetCommand@2
-  displayName: 'Push NuGet Packages to Azure Artifacts'
+  displayName: 'Push NuGet Packages to Azure Artifacts (4/9)'
   inputs:
     command: 'push'
     packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
@@ -71,20 +60,20 @@ steps:
     allowPackageConflicts: true
 
 ############################################################
-# Step 6: Publish Build Artifacts (Pipeline Output Folder)   #
+# Step 5: Publish Build Artifacts (Pipeline Output Folder) #
 ############################################################
 - task: PublishBuildArtifacts@1
-  displayName: 'Publish Build Artifacts (Pipeline Folder)'
+  displayName: 'Publish Build Artifacts (Pipeline Folder) (5/9)'
   inputs:
     PathtoPublish: '$(pipelineFolder)'
     ArtifactName: 'drop'
     publishLocation: 'Container'
 
-############################################################
-# Step 7: Create GitHub Release (Pre-release Tag)          #
-############################################################
+###################################################
+# Step 6: Create GitHub Release (Pre-release Tag) #
+###################################################
 - task: GitHubRelease@1
-  displayName: 'Create GitHub Release (Pre-release)'
+  displayName: 'Create GitHub Release (Pre-release) (6/9)'
   inputs:
     gitHubConnection: 'zombi-dev-org'
     repositoryName: '$(Build.Repository.Name)'
@@ -97,21 +86,21 @@ steps:
     changeLogCompareToRelease: 'lastFullRelease'
     changeLogType: 'commitBased'
 
-############################################################
-# Step 8: Publish Pipeline Artifact (Build Workspace)      #
-############################################################
+#######################################################
+# Step 7: Publish Pipeline Artifact (Build Workspace) #
+#######################################################
 - task: PublishPipelineArtifact@1
-  displayName: 'Publish Pipeline Artifact'
+  displayName: 'Publish Pipeline Artifact (7/9)'
   inputs:
     targetPath: '$(Pipeline.Workspace)'
     artifact: '$(Build.SourceVersion) - $(Build.BuildId)'
     publishLocation: 'pipeline'
 
-#########################################################################################
-# Step 9: Package Files, Calculate Hashes and Prepare Artifacts (Custom API steps removed) #
-#########################################################################################
+#################################################################
+# Step 8: Package Files, Calculate Hashes and Prepare Artifacts #
+#################################################################
 - task: Bash@3
-  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Bash 1)'
+  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Bash 1) (8/9)'
   inputs:
     targetType: 'inline'
     script: |
@@ -167,11 +156,11 @@ steps:
       echo "Finished packaging and preparing artifacts."
       echo "=============================================="
 
-#########################################################################################
-# Step 10: Update README.md with Build Info and Commit Changes                         #
-#########################################################################################
+###############################################################
+# Step 9: Update README.md with Build Info and Commit Changes #
+###############################################################
 - task: Bash@3
-  displayName: 'Update README.md with Build Info (Bash 2)'
+  displayName: 'Update README.md with Build Info (Bash 2) (9/9)'
   inputs:
     targetType: 'inline'
     script: |
