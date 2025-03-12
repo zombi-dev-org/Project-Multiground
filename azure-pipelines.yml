@@ -16,7 +16,7 @@ steps:
 - task: NuGetToolInstaller@1
   displayName: 'Restore NuGet Packages (1/9)'
   inputs:
-    versionSpec: 
+    versionSpec:
     checkLatest: true
 
 ##################################
@@ -74,7 +74,6 @@ steps:
     repositoryName: '$(Build.Repository.Name)'
     action: 'create'
     target: '$(Build.SourceVersion)'
-    tagSource: 'gitTag'
     title: 'Release $(Build.SourceVersion)'
     assets: '$(Build.ArtifactStagingDirectory)/**/*'
     isPreRelease: true
@@ -91,100 +90,106 @@ steps:
     artifact: '$(Build.SourceVersion) - $(Build.BuildId)'
     publishLocation: 'pipeline'
 
-#################################################################
-# Step 8: Package Files, Calculate Hashes and Prepare Artifacts #
-#################################################################
-- task: Bash@3
-  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Bash 1) (8/9)'
+#########################################################################################
+# Step 8: Package Files, Calculate Hashes and Prepare Artifacts (Batch Script) (8/9)    #
+#########################################################################################
+- task: CmdLine@2
+  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Batch 1/2) (8/9)'
   inputs:
-    targetType: 'inline'
     script: |
-      echo "=============================================="
-      echo "Starting file hash calculation and packaging..."
-      echo "=============================================="
+      @echo off
+      echo ==============================================
+      echo Starting file hash calculation and packaging...
+      echo ==============================================
       
-      # Retrieve pipeline variables
-      COMMIT_ID=$(Build.SourceVersion)
-      BUILD_ID=$(Build.BuildId)
-      COMMITTER=$(Build.RequestedFor)
+      rem Retrieve pipeline variables
+      set COMMIT_ID=$(Build.SourceVersion)
+      set BUILD_ID=$(Build.BuildId)
+      set COMMITTER=$(Build.RequestedFor)
       
-      # Define target directory (ensure it exists)
-      TARGET_DIR="$(Build.SourcesDirectory)/PipelineOutput"
-      echo "Ensuring target directory exists: $TARGET_DIR"
-      mkdir -p "$TARGET_DIR"
+      rem Define target directory (ensure it exists)
+      set "TARGET_DIR=$(Build.SourcesDirectory)\PipelineOutput"
+      echo Ensuring target directory exists: %TARGET_DIR%
+      if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
       
-      # Define ZIP and HASH file names including the commit ID
-      ZIP_FILE="build_${COMMIT_ID}.zip"
-      HASH_FILE="hashes_${COMMIT_ID}.txt"
+      rem Define ZIP and HASH file names including the commit ID
+      set "ZIP_FILE=build_%COMMIT_ID%.zip"
+      set "HASH_FILE=hashes_%COMMIT_ID%.txt"
       
-      echo "Creating hash file: $HASH_FILE with commit ID at the top..."
-      echo "Commit ID: ${COMMIT_ID}" > "$TARGET_DIR/$HASH_FILE"
+      echo Creating hash file: %HASH_FILE% with commit ID at the top...
+      echo Commit ID: %COMMIT_ID% > "%TARGET_DIR%\%HASH_FILE%"
       
-      echo "Calculating SHA-256 hashes for all files in $TARGET_DIR..."
-      # Loop over all files except the ZIP and HASH file
-      find "$TARGET_DIR" -type f ! -name "$ZIP_FILE" ! -name "$HASH_FILE" | while read FILE; do
-         FILE_HASH=$(sha256sum "$FILE" | awk '{print $1}')
-         echo "$(basename "$FILE"): $FILE_HASH" >> "$TARGET_DIR/$HASH_FILE"
-         echo "Hashed file: $(basename "$FILE") -> $FILE_HASH"
-      done
+      echo Calculating SHA-256 hashes for all files in %TARGET_DIR%...
+      rem Loop over all files in TARGET_DIR except ZIP_FILE and HASH_FILE.
+      for /R "%TARGET_DIR%" %%F in (*) do (
+          if /I not "%%~nxF"=="%ZIP_FILE%" if /I not "%%~nxF"=="%HASH_FILE%" (
+             for /F "skip=1 tokens=1" %%H in ('certutil -hashfile "%%F" SHA256 ^| findstr /V "CertUtil"') do (
+                 echo %%~nxF: %%H >> "%TARGET_DIR%\%HASH_FILE%"
+                 echo Hashed file: %%~nxF -> %%H
+                 goto :nextFile
+             )
+             :nextFile
+          )
+      )
       
-      echo "Zipping up all files in $TARGET_DIR (excluding $ZIP_FILE and $HASH_FILE)..."
-      cd "$TARGET_DIR"
-      zip -r "$ZIP_FILE" . -x "$ZIP_FILE" "$HASH_FILE"
+      echo Zipping up all files in %TARGET_DIR% (excluding %ZIP_FILE% and %HASH_FILE%)...
+      rem Use PowerShell Compress-Archive command to create ZIP archive.
+      powershell -Command "Compress-Archive -Path '%TARGET_DIR%\*' -DestinationPath '%TARGET_DIR%\%ZIP_FILE%' -Update"
       
-      echo "Calculating SHA-256 hash for ZIP file: $ZIP_FILE..."
-      ZIP_HASH=$(sha256sum "$ZIP_FILE" | awk '{print $1}')
-      echo "ZIP file hash: $ZIP_HASH" >> "$TARGET_DIR/$HASH_FILE"
+      echo Calculating SHA-256 hash for ZIP file: %ZIP_FILE%...
+      for /F "skip=1 tokens=1" %%Z in ('certutil -hashfile "%TARGET_DIR%\%ZIP_FILE%" SHA256 ^| findstr /V "CertUtil"') do (
+          set "ZIP_HASH=%%Z"
+          goto :gotZipHash
+      )
+      :gotZipHash
+      call echo ZIP file hash: %ZIP_HASH% >> "%TARGET_DIR%\%HASH_FILE%"
       
-      echo "=============================================="
-      echo "Packaging complete. Files created:"
-      echo "ZIP File: $ZIP_FILE"
-      echo "Hash File: $HASH_FILE"
-      echo "Contents of Hash File:"
-      cat "$TARGET_DIR/$HASH_FILE"
-      echo "=============================================="
+      echo ==============================================
+      echo Packaging complete. Files created:
+      echo ZIP File: %ZIP_FILE%
+      echo Hash File: %HASH_FILE%
+      type "%TARGET_DIR%\%HASH_FILE%"
+      echo ==============================================
+      echo Custom upload and API reporting steps are currently disabled.
+      echo ==============================================
+      echo Finished packaging and preparing artifacts.
       
-      # Note: Custom API and upload endpoint steps have been temporarily removed.
-      echo "Custom upload and API reporting steps are currently disabled."
-      
-      echo "=============================================="
-      echo "Finished packaging and preparing artifacts."
-      echo "=============================================="
-
-###############################################################
-# Step 9: Update README.md with Build Info and Commit Changes #
-###############################################################
-- task: Bash@3
-  displayName: 'Update README.md with Build Info (Bash 2) (9/9)'
+#########################################################################################
+# Step 9: Update README.md with Build Info and Commit Changes (Batch Script) (9/9)       #
+#########################################################################################
+- task: CmdLine@2
+  displayName: 'Update README.md with Build Info (Batch 2/2) (9/9)'
   inputs:
-    targetType: 'inline'
     script: |
-      echo "Updating README.md with dynamic build information..."
+      @echo off
+      echo Updating README.md with dynamic build information...
       
-      # Retrieve pipeline variables for commit details
-      COMMIT_ID=$(Build.SourceVersion)
-      COMMIT_LINK="https://github.com/zombi-dev-org/Project-Multiground/commit/${COMMIT_ID}"
-      ARTIFACT_LINK="https://github.com/zombi-dev-org/Project-Multiground/actions/runs/$(Build.BuildId)"
-      RELEASE_LINK="https://github.com/zombi-dev-org/Project-Multiground/releases/tag/Pre-release"
+      rem Retrieve pipeline variables for commit details
+      set "COMMIT_ID=$(Build.SourceVersion)"
+      set "COMMIT_LINK=https://github.com/zombi-dev-org/Project-Multiground/commit/%COMMIT_ID%"
+      set "ARTIFACT_LINK=https://github.com/zombi-dev-org/Project-Multiground/actions/runs/$(Build.BuildId)"
+      set "RELEASE_LINK=https://github.com/zombi-dev-org/Project-Multiground/releases/tag/Pre-release"
       
-      # Replace placeholders in the README.md file.
-      sed -i "s|\[\[latest commit ID\]\]|${COMMIT_ID}|g" README.md
-      sed -i "s|\[\[latest commit link\]\]|${COMMIT_LINK}|g" README.md
-      sed -i "s|\[\[latest commit artifact's link\]\]|${ARTIFACT_LINK}|g" README.md
-      sed -i "s|\[\[latest commit release link\]\]|${RELEASE_LINK}|g" README.md
+      rem Replace placeholders in README.md file (using powershell -Command for in-place replacement)
+      powershell -Command "(Get-Content README.md) -replace '\[\[latest commit ID\]\]', '%COMMIT_ID%' | Set-Content README.md"
+      powershell -Command "(Get-Content README.md) -replace '\[\[latest commit link\]\]', '%COMMIT_LINK%' | Set-Content README.md"
+      powershell -Command "(Get-Content README.md) -replace '\[\[latest commit artifact''s link\]\]', '%ARTIFACT_LINK%' | Set-Content README.md"
+      powershell -Command "(Get-Content README.md) -replace '\[\[latest commit release link\]\]', '%RELEASE_LINK%' | Set-Content README.md"
       
-      echo "Checking out branch: $(Build.SourceBranchName)"
+      echo Checking out branch: $(Build.SourceBranchName)
       git checkout $(Build.SourceBranchName)
-
-      EMAIL="${Build.RequestedForEmail}"
-      USER="${Build.RequestedFor}"
       
-      echo "Configuring git with email: $EMAIL and user: $USER"
-      git config --global user.email "$EMAIL"
-      git config --global user.name "$USER"
+      rem Use built-in variables for email and user
+      set "EMAIL=$(Build.RequestedForEmail)"
+      set "USER=$(Build.RequestedFor)"
+      
+      echo Configuring git with email: %EMAIL% and user: %USER%
+      git config --global user.email "%EMAIL%"
+      git config --global user.name "%USER%"
       
       git add README.md
-      git commit -m "Update README.md for ${COMMIT_ID}"
+      git commit -m "Update README.md for %COMMIT_ID%"
       git push origin $(Build.SourceBranchName)
       
-      echo "README.md updated and changes pushed."
+      echo README.md updated and changes pushed.
+      echo Done!
