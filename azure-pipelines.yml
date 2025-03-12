@@ -107,10 +107,8 @@ steps:
       set BUILD_ID=$(Build.BuildId)
       set COMMITTER=$(Build.RequestedFor)
       
-      rem Define target directory (ensure it exists)
-      set "TARGET_DIR=$(Build.SourcesDirectory)\PipelineOutput"
-      echo Ensuring target directory exists: %TARGET_DIR%
-      if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+      rem Define target directory
+      set "TARGET_DIR=$(Build.SourcesDirectory)"
       
       rem Define ZIP and HASH file names including the commit ID
       set "ZIP_FILE=build_%COMMIT_ID%.zip"
