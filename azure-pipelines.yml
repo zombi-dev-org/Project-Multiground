@@ -1,8 +1,3 @@
-# .NET Desktop
-# Build and run tests for .NET Desktop or Windows classic desktop solutions.
-# Add steps that publish symbols, save build artifacts, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/windows/dot-net
-
 trigger:
 - latest
 
@@ -13,6 +8,15 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Debug'
+  # Folder where pipeline artifacts (build outputs) are placed.
+  pipelineFolder: '$(Build.SourcesDirectory)/PipelineOutput'
+  # Set to 'true' to run tests.
+  RunTests: 'true'
+  # Service connection for GitHub release (set this in your variable group or pipeline settings)
+  GitHubServiceConnection: $(GitHubServiceConnection)  # e.g. "MyGitHubConnection"
+  # Email and user for git commit. Defaults to built-in variables if not provided.
+  GitHubEmail: $(GitHubEmail)
+  GitHubUser: $(GitHubUser)
 
 steps:
 - task: NuGetToolInstaller@1
@@ -26,3 +30,72 @@ steps:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+
+# Run tests only if RunTests is true
+- task: VSTest@2
+  condition: eq(variables['RunTests'], 'true')
+  inputs:
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+# Push NuGet package(s) to your Azure Artifacts feed
+- task: NuGetCommand@2
+  displayName: 'Push packages to Azure Artifacts'
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg'
+    publishFeed: 'https://pkgs.dev.azure.com/zombi-dev/4a801188-824e-4a83-b4e5-7fdcc78c6c71/_packaging/DLL-Builds/nuget/v3/index.json'
+
+# Publish build artifacts from the pipeline folder (separate from your provided artifact link)
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(pipelineFolder)'
+    ArtifactName: 'drop'
+
+# Create a GitHub Release with the tag "Pre-release"
+- task: GitHubRelease@0
+  displayName: 'Create GitHub Release'
+  inputs:
+    gitHubConnection: '$(GitHubServiceConnection)'
+    tag: 'Pre-release'
+    target: '$(Build.SourceVersion)'
+    releaseTitle: 'Release $(Build.SourceVersion)'
+    assets: '$(Build.ArtifactStagingDirectory)/**/*'
+
+# Update README.md with dynamic build info using automatically retrieved email and user
+- task: Bash@3
+  displayName: 'Update README.md'
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Retrieve pipeline variables for commit details
+      COMMIT_ID=$(Build.SourceVersion)
+      COMMIT_LINK="https://github.com/zombi-dev-org/Project-Multiground/commit/${COMMIT_ID}"
+      ARTIFACT_LINK="https://github.com/zombi-dev-org/Project-Multiground/actions/runs/$(Build.BuildId)"
+      RELEASE_LINK="https://github.com/zombi-dev-org/Project-Multiground/releases/tag/Pre-release"
+
+      echo "Updating README.md with dynamic build information..."
+
+      # Replace placeholders in the README.md file.
+      sed -i "s|\[\[latest commit ID\]\]|${COMMIT_ID}|g" README.md
+      sed -i "s|\[\[latest commit link\]\]|${COMMIT_LINK}|g" README.md
+      sed -i "s|\[\[latest commit artifact's link\]\]|${ARTIFACT_LINK}|g" README.md
+      sed -i "s|\[\[latest commit release link\]\]|${RELEASE_LINK}|g" README.md
+
+      # Use provided GitHub email and user if set; otherwise fall back to built-in variables.
+      EMAIL="${GitHubEmail}"
+      if [ -z "$EMAIL" ]; then
+         EMAIL=$(Build.RequestedForEmail)
+      fi
+      USER="${GitHubUser}"
+      if [ -z "$USER" ]; then
+         USER=$(Build.RequestedFor)
+      fi
+
+      echo "Configuring git with email: $EMAIL and user: $USER"
+      git config user.email "$EMAIL"
+      git config user.name "$USER"
+      
+      git add README.md
+      git commit -m "Update README with latest commit info"
+      git push origin HEAD:main
