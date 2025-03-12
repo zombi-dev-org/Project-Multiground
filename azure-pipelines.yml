@@ -94,7 +94,7 @@ steps:
 # Step 8: Package Files, Calculate Hashes and Prepare Artifacts (Batch Script) (8/9)    #
 #########################################################################################
 - task: CmdLine@2
-  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Batch 1/2) (8/9)'
+  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Batch 1/2)'
   inputs:
     script: |
       @echo off
@@ -103,12 +103,13 @@ steps:
       echo ==============================================
       
       rem Retrieve pipeline variables
-      set COMMIT_ID=$(Build.SourceVersion)
-      set BUILD_ID=$(Build.BuildId)
-      set COMMITTER=$(Build.RequestedFor)
+      set "COMMIT_ID=$(Build.SourceVersion)"
+      set "BUILD_ID=$(Build.BuildId)"
+      set "COMMITTER=$(Build.RequestedFor)"
       
       rem Define target directory
       set "TARGET_DIR=$(Build.SourcesDirectory)"
+      echo Using target directory: %TARGET_DIR%
       
       rem Define ZIP and HASH file names including the commit ID
       set "ZIP_FILE=build_%COMMIT_ID%.zip"
@@ -118,34 +119,28 @@ steps:
       echo Commit ID: %COMMIT_ID% > "%TARGET_DIR%\%HASH_FILE%"
       
       echo Calculating SHA-256 hashes for all files in %TARGET_DIR%...
-      rem Loop over all files in TARGET_DIR except ZIP_FILE and HASH_FILE.
       for /R "%TARGET_DIR%" %%F in (*) do (
-          if /I not "%%~nxF"=="%ZIP_FILE%" if /I not "%%~nxF"=="%HASH_FILE%" (
-             for /F "skip=1 tokens=1" %%H in ('certutil -hashfile "%%F" SHA256 ^| findstr /V "CertUtil"') do (
-                 echo %%~nxF: %%H >> "%TARGET_DIR%\%HASH_FILE%"
-                 echo Hashed file: %%~nxF -> %%H
-                 goto :nextFile
-             )
-             :nextFile
-          )
+          call :ProcessFile "%%F"
       )
+      goto :EOF
       
-      echo Zipping up all files in %TARGET_DIR% (excluding %ZIP_FILE% and %HASH_FILE%)...
-      rem Use PowerShell Compress-Archive command to create ZIP archive.
-      powershell -Command "Compress-Archive -Path '%TARGET_DIR%\*' -DestinationPath '%TARGET_DIR%\%ZIP_FILE%' -Update"
-      
-      echo Calculating SHA-256 hash for ZIP file: %ZIP_FILE%...
-      for /F "skip=1 tokens=1" %%Z in ('certutil -hashfile "%TARGET_DIR%\%ZIP_FILE%" SHA256 ^| findstr /V "CertUtil"') do (
-          set "ZIP_HASH=%%Z"
-          goto :gotZipHash
+      :ProcessFile
+      rem %1 is the file path; skip if file name matches ZIP or HASH file
+      if /I "%~nx1"=="%ZIP_FILE%" goto :EOF
+      if /I "%~nx1"=="%HASH_FILE%" goto :EOF
+      for /F "skip=1 tokens=1" %%H in ('certutil -hashfile "%~1" SHA256 ^| findstr /V "CertUtil"') do (
+          echo %~nx1: %%H >> "%TARGET_DIR%\%HASH_FILE%"
+          echo Hashed file: %~nx1 -> %%H
+          goto :EOF
       )
-      :gotZipHash
-      call echo ZIP file hash: %ZIP_HASH% >> "%TARGET_DIR%\%HASH_FILE%"
+      goto :EOF
+      rem End of script
       
       echo ==============================================
       echo Packaging complete. Files created:
       echo ZIP File: %ZIP_FILE%
       echo Hash File: %HASH_FILE%
+      echo Contents of Hash File:
       type "%TARGET_DIR%\%HASH_FILE%"
       echo ==============================================
       echo Custom upload and API reporting steps are currently disabled.
@@ -156,7 +151,7 @@ steps:
 # Step 9: Update README.md with Build Info and Commit Changes (Batch Script) (9/9)       #
 #########################################################################################
 - task: CmdLine@2
-  displayName: 'Update README.md with Build Info (Batch 2/2) (9/9)'
+  displayName: 'Update README.md with Build Info (Batch 2/2)'
   inputs:
     script: |
       @echo off
@@ -168,7 +163,7 @@ steps:
       set "ARTIFACT_LINK=https://github.com/zombi-dev-org/Project-Multiground/actions/runs/$(Build.BuildId)"
       set "RELEASE_LINK=https://github.com/zombi-dev-org/Project-Multiground/releases/tag/Pre-release"
       
-      rem Replace placeholders in README.md file (using powershell -Command for in-place replacement)
+      rem Use PowerShell inline commands to replace placeholders in README.md
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit ID\]\]', '%COMMIT_ID%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit link\]\]', '%COMMIT_LINK%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit artifact''s link\]\]', '%ARTIFACT_LINK%' | Set-Content README.md"
