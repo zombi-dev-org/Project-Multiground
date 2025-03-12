@@ -11,15 +11,16 @@ variables:
   # Folder where pipeline artifacts (build outputs) are placed.
   pipelineFolder: '$(Build.SourcesDirectory)/PipelineOutput'
   # Set to 'true' to run tests.
-  RunTests: 'true'
-  # Service connection for GitHub release (set this in your variable group or pipeline settings)
-  GitHubServiceConnection: $(GitHubServiceConnection)  # e.g. "MyGitHubConnection"
+  RunTests: 'false'
   # Email and user for git commit. Defaults to built-in variables if not provided.
   GitHubEmail: $(GitHubEmail)
   GitHubUser: $(GitHubUser)
 
 steps:
 - task: NuGetToolInstaller@1
+  inputs:
+    versionSpec: 
+    checkLatest: true
 
 - task: NuGetCommand@2
   inputs:
@@ -28,8 +29,13 @@ steps:
 - task: VSBuild@1
   inputs:
     solution: '$(solution)'
+    vsVersion: '17.0'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+    maximumCpuCount: true
+    msbuildArchitecture: 'x64'
+    createLogFile: true
+    logFileVerbosity: 'detailed'
 
 # Run tests only if RunTests is true
 - task: VSTest@2
@@ -40,11 +46,13 @@ steps:
 
 # Push NuGet package(s) to your Azure Artifacts feed
 - task: NuGetCommand@2
-  displayName: 'Push packages to Azure Artifacts'
+  displayName: 'Push NuGet packages to Azure Artifacts'
   inputs:
     command: 'push'
-    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg'
-    publishFeed: 'https://pkgs.dev.azure.com/zombi-dev/4a801188-824e-4a83-b4e5-7fdcc78c6c71/_packaging/DLL-Builds/nuget/v3/index.json'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+    nuGetFeedType: 'internal'
+    publishVstsFeed: '4a801188-824e-4a83-b4e5-7fdcc78c6c71/05698a6e-affb-4164-b5f8-c68b8e1a2c92'
+    allowPackageConflicts: true
 
 # Publish build artifacts from the pipeline folder (separate from your provided artifact link)
 - task: PublishBuildArtifacts@1
@@ -53,14 +61,24 @@ steps:
     ArtifactName: 'drop'
 
 # Create a GitHub Release with the tag "Pre-release"
-- task: GitHubRelease@0
-  displayName: 'Create GitHub Release'
+- task: GitHubRelease@1
   inputs:
-    gitHubConnection: '$(GitHubServiceConnection)'
-    tag: 'Pre-release'
+    gitHubConnection: 'zombi-dev-org'
+    repositoryName: '$(Build.Repository.Name)'
+    action: 'create'
     target: '$(Build.SourceVersion)'
-    releaseTitle: 'Release $(Build.SourceVersion)'
+    tagSource: 'gitTag'
+    title: 'Release $(Build.SourceVersion)'
+    isPreRelease: true
+    changeLogCompareToRelease: 'lastFullRelease'
+    changeLogType: 'commitBased'
     assets: '$(Build.ArtifactStagingDirectory)/**/*'
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(Pipeline.Workspace)'
+    artifact: '$(Build.SourceVersion) - $(Build.BuildId)'
+    publishLocation: 'pipeline'
 
 # Update README.md with dynamic build info using automatically retrieved email and user
 - task: Bash@3
@@ -68,20 +86,22 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
+      echo "Updating README.md with dynamic build information..."
+      
       # Retrieve pipeline variables for commit details
       COMMIT_ID=$(Build.SourceVersion)
       COMMIT_LINK="https://github.com/zombi-dev-org/Project-Multiground/commit/${COMMIT_ID}"
       ARTIFACT_LINK="https://github.com/zombi-dev-org/Project-Multiground/actions/runs/$(Build.BuildId)"
       RELEASE_LINK="https://github.com/zombi-dev-org/Project-Multiground/releases/tag/Pre-release"
-
-      echo "Updating README.md with dynamic build information..."
-
+      
       # Replace placeholders in the README.md file.
       sed -i "s|\[\[latest commit ID\]\]|${COMMIT_ID}|g" README.md
       sed -i "s|\[\[latest commit link\]\]|${COMMIT_LINK}|g" README.md
       sed -i "s|\[\[latest commit artifact's link\]\]|${ARTIFACT_LINK}|g" README.md
       sed -i "s|\[\[latest commit release link\]\]|${RELEASE_LINK}|g" README.md
-
+      
+      git checkout $(Build.SourceBranchName)
+      
       # Use provided GitHub email and user if set; otherwise fall back to built-in variables.
       EMAIL="${GitHubEmail}"
       if [ -z "$EMAIL" ]; then
@@ -91,11 +111,12 @@ steps:
       if [ -z "$USER" ]; then
          USER=$(Build.RequestedFor)
       fi
-
-      echo "Configuring git with email: $EMAIL and user: $USER"
-      git config user.email "$EMAIL"
-      git config user.name "$USER"
+      
+      git config --global user.email "$EMAIL"
+      git config --global user.name "$USER"
       
       git add README.md
-      git commit -m "Update README with latest commit info"
-      git push origin HEAD:main
+      git commit -m "Update README.md for ${COMMIT_ID}"
+      git push origin $(Build.SourceBranchName)
+      
+      echo "Finished!"
