@@ -159,7 +159,7 @@ steps:
       
       git add README.md
       git commit -m "Update README.md for %COMMIT_ID%"
-      git push origin $(Build.SourceBranchName)
+      git push origin HEAD:latest
       
       echo README.md updated and changes pushed.
       echo Done!
