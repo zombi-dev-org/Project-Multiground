@@ -149,8 +149,14 @@ steps:
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit artifact''s link\]\]', '%ARTIFACT_LINK%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit release link\]\]', '%RELEASE_LINK%' | Set-Content README.md"
       
-      echo Checking out branch: $(Build.SourceBranchName)
-      git checkout $(Build.SourceBranchName)
+      rem Determine branch name: if BUILD_SOURCEBRANCHNAME is "latest", use "main" as fallback.
+      set "BRANCH=%BUILD_SOURCEBRANCHNAME%"
+      if /I "%BRANCH%"=="latest" (
+          echo Branch name is "latest"; using "main" as fallback.
+          set "BRANCH=main"
+      )
+      echo Checking out branch: %BRANCH%
+      git checkout %BRANCH%
       
       rem Use built-in variables for email and user
       set "EMAIL=$(Build.RequestedForEmail)"
@@ -162,7 +168,7 @@ steps:
       
       git add README.md
       git commit -m "Update README.md for %COMMIT_ID%"
-      git push origin $(Build.SourceBranchName)
+      git push origin %BRANCH%
       
       echo README.md updated and changes pushed.
       echo Done!
