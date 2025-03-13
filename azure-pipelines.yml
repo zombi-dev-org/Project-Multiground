@@ -10,6 +10,9 @@ variables:
   buildConfiguration: 'Debug'
 
 steps:
+- checkout: self
+  persistCredentials: true
+
 ##############################
 # Step 1: Install NuGet Tool #
 ##############################
