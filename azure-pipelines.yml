@@ -14,16 +14,16 @@ steps:
 # Step 1: Install NuGet Tool #
 ##############################
 - task: NuGetToolInstaller@1
-  displayName: 'Restore NuGet Packages (1/9)'
+  displayName: 'Install NuGet Tool (1/11)'
   inputs:
-    versionSpec:
+    versionSpec: 
     checkLatest: true
 
 ##################################
 # Step 2: Restore NuGet Packages #
 ##################################
 - task: NuGetCommand@2
-  displayName: 'Restore NuGet Packages (2/9)'
+  displayName: 'Restore NuGet Packages (2/11)'
   inputs:
     restoreSolution: '$(solution)'
 
@@ -31,7 +31,7 @@ steps:
 # Step 3: Build Solution #
 ##########################
 - task: VSBuild@1
-  displayName: 'Build Solution (3/9)'
+  displayName: 'Build Solution (3/11)'
   inputs:
     solution: '$(solution)'
     vsVersion: '17.0'
@@ -42,11 +42,48 @@ steps:
     createLogFile: true
     logFileVerbosity: 'detailed'
 
+#################################################
+# Step 4: Archive Files to ZIP (ArchiveFiles@2) #
+#################################################
+- task: ArchiveFiles@2
+  displayName: 'Archive Files to ZIP (4/11)'
+  inputs:
+    rootFolderOrFile: '$(Build.SourcesDirectory)'
+    includeRootFolder: true
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.CommitId).zip'
+    replaceExistingArchive: true
+    verbose: true
+
+###################################
+# Step 5: Calculate ZIP File Hash #
+###################################
+- task: CmdLine@2
+  displayName: 'Calculate ZIP File Hash (5/11)'
+  inputs:
+    script: |
+      @echo off
+      setlocal EnableDelayedExpansion
+      rem Define the full path of the ZIP file from Step 8
+      set "ZIP_PATH=$(Build.ArtifactStagingDirectory)\$(Build.CommitId).zip"
+      echo Calculating SHA-256 hash for ZIP file: %ZIP_PATH%
+      for /F "skip=1 tokens=1" %%Z in ('certutil -hashfile "%ZIP_PATH%" SHA256 ^| findstr /V "CertUtil"') do (
+          set "ZIP_HASH=%%Z"
+          goto :gotHash
+      )
+      :gotHash
+      echo ZIP file hash: !ZIP_HASH!
+      rem Create a hash file in the artifact staging directory with the commit ID on the first line
+      echo $(Build.CommitId) > "$(Build.ArtifactStagingDirectory)\$(Build.CommitId)_hashes.txt"
+      echo !ZIP_HASH! >> "$(Build.ArtifactStagingDirectory)\$(Build.CommitId)_hashes.txt"
+      endlocal
+      echo Hash calculation completed.
+
 #######################################################
-# Step 4: Push NuGet Packages to Azure Artifacts Feed #
+# Step 6: Push NuGet Packages to Azure Artifacts Feed #
 #######################################################
 - task: NuGetCommand@2
-  displayName: 'Push NuGet Packages to Azure Artifacts (4/9)'
+  displayName: 'Push NuGet Packages to Azure Artifacts (6/11)'
   inputs:
     command: 'push'
     packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
@@ -55,103 +92,56 @@ steps:
     allowPackageConflicts: true
 
 ############################################################
-# Step 5: Publish Build Artifacts (Pipeline Output Folder) #
+# Step 7: Publish Build Artifacts (Pipeline Output Folder) #
 ############################################################
 - task: PublishBuildArtifacts@1
-  displayName: 'Publish Build Artifacts (Pipeline Folder) (5/9)'
+  displayName: 'Publish Build Artifacts (Pipeline Folder) (7/11)'
   inputs:
     PathtoPublish: '$(Build.SourcesDirectory)'
     ArtifactName: 'drop'
     publishLocation: 'Container'
 
 ###################################################
-# Step 6: Create GitHub Release (Pre-release Tag) #
+# Step 8: Create GitHub Release (Pre-release Tag) #
 ###################################################
 - task: GitHubRelease@1
-  displayName: 'Create GitHub Release (Pre-release) (6/9)'
+  displayName: 'Create GitHub Release (Pre-release) (8/11)'
   inputs:
     gitHubConnection: 'zombi-dev-org'
     repositoryName: '$(Build.Repository.Name)'
     action: 'create'
     target: '$(Build.SourceVersion)'
-    title: 'Release $(Build.SourceVersion)'
+    title: 'Commit $(Build.SourceVersion)'
     assets: '$(Build.ArtifactStagingDirectory)/**/*'
     isPreRelease: true
-    changeLogCompareToRelease: 'lastFullRelease'
+    changeLogCompareToRelease: 'lastNonDraftRelease'
     changeLogType: 'commitBased'
 
 #######################################################
-# Step 7: Publish Pipeline Artifact (Build Workspace) #
+# Step 9: Publish Pipeline Artifact (Build Workspace) #
 #######################################################
 - task: PublishPipelineArtifact@1
-  displayName: 'Publish Pipeline Artifact (7/9)'
+  displayName: 'Publish Pipeline Artifact (9/11)'
   inputs:
     targetPath: '$(Pipeline.Workspace)'
     artifact: '$(Build.SourceVersion) - $(Build.BuildId)'
     publishLocation: 'pipeline'
 
-#########################################################################################
-# Step 8: Package Files, Calculate Hashes and Prepare Artifacts (Batch Script) (8/9)    #
-#########################################################################################
-- task: CmdLine@2
-  displayName: 'Package Files, Calculate Hashes, and Prepare Artifacts (Batch 1/2)'
+################################################################
+# Step 10: Publish Symbols to Azure Artifacts (PublishSymbols) #
+################################################################
+- task: PublishSymbols@2
+  displayName: 'Publish Symbols to Azure Artifacts (10/11)'
   inputs:
-    script: |
-      @echo off
-      echo ==============================================
-      echo Starting file hash calculation and packaging...
-      echo ==============================================
-      
-      rem Retrieve pipeline variables
-      set "COMMIT_ID=$(Build.SourceVersion)"
-      set "BUILD_ID=$(Build.BuildId)"
-      set "COMMITTER=$(Build.RequestedFor)"
-      
-      rem Define target directory
-      set "TARGET_DIR=$(Build.SourcesDirectory)"
-      echo Using target directory: %TARGET_DIR%
-      
-      rem Define ZIP and HASH file names including the commit ID
-      set "ZIP_FILE=build_%COMMIT_ID%.zip"
-      set "HASH_FILE=hashes_%COMMIT_ID%.txt"
-      
-      echo Creating hash file: %HASH_FILE% with commit ID at the top...
-      echo Commit ID: %COMMIT_ID% > "%TARGET_DIR%\%HASH_FILE%"
-      
-      echo Calculating SHA-256 hashes for all files in %TARGET_DIR%...
-      for /R "%TARGET_DIR%" %%F in (*) do (
-          call :ProcessFile "%%F"
-      )
-      goto :EOF
-      
-      :ProcessFile
-      rem %1 is the file path; skip if file name matches ZIP or HASH file
-      if /I "%~nx1"=="%ZIP_FILE%" goto :EOF
-      if /I "%~nx1"=="%HASH_FILE%" goto :EOF
-      for /F "skip=1 tokens=1" %%H in ('certutil -hashfile "%~1" SHA256 ^| findstr /V "CertUtil"') do (
-          echo %~nx1: %%H >> "%TARGET_DIR%\%HASH_FILE%"
-          echo Hashed file: %~nx1 -> %%H
-          goto :EOF
-      )
-      goto :EOF
-      rem End of script
-      
-      echo ==============================================
-      echo Packaging complete. Files created:
-      echo ZIP File: %ZIP_FILE%
-      echo Hash File: %HASH_FILE%
-      echo Contents of Hash File:
-      type "%TARGET_DIR%\%HASH_FILE%"
-      echo ==============================================
-      echo Custom upload and API reporting steps are currently disabled.
-      echo ==============================================
-      echo Finished packaging and preparing artifacts.
-      
-#########################################################################################
-# Step 9: Update README.md with Build Info and Commit Changes (Batch Script) (9/9)       #
-#########################################################################################
+    ConnectedServiceName: 'Azure subscription 1(71cf2373-c5b8-43ef-be49-59662e6c905c)'
+    SearchPattern: '**/bin/**/*.pdb'
+    SymbolServerType: 'TeamServices'
+
+################################################################
+# Step 11: Update README.md with Build Info and Commit Changes #
+################################################################
 - task: CmdLine@2
-  displayName: 'Update README.md with Build Info (Batch 2/2)'
+  displayName: 'Update README.md with Build Info (11/11)'
   inputs:
     script: |
       @echo off
@@ -163,7 +153,7 @@ steps:
       set "ARTIFACT_LINK=https://github.com/zombi-dev-org/Project-Multiground/actions/runs/$(Build.BuildId)"
       set "RELEASE_LINK=https://github.com/zombi-dev-org/Project-Multiground/releases/tag/Pre-release"
       
-      rem Use PowerShell inline commands to replace placeholders in README.md
+      rem Use PowerShell inline commands to update README.md placeholders
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit ID\]\]', '%COMMIT_ID%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit link\]\]', '%COMMIT_LINK%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit artifact''s link\]\]', '%ARTIFACT_LINK%' | Set-Content README.md"
