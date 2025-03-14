@@ -10,14 +10,11 @@ variables:
   buildConfiguration: 'Debug'
 
 steps:
-- checkout: self
-  persistCredentials: true
-
 ##############################
 # Step 1: Install NuGet Tool #
 ##############################
 - task: NuGetToolInstaller@1
-  displayName: 'Install NuGet Tool (1/10)'
+  displayName: 'Install NuGet Tool (1/11)'
   inputs:
     versionSpec: 
     checkLatest: true
@@ -26,7 +23,7 @@ steps:
 # Step 2: Restore NuGet Packages #
 ##################################
 - task: NuGetCommand@2
-  displayName: 'Restore NuGet Packages (2/10)'
+  displayName: 'Restore NuGet Packages (2/11)'
   inputs:
     restoreSolution: '$(solution)'
 
@@ -34,7 +31,7 @@ steps:
 # Step 3: Build Solution #
 ##########################
 - task: VSBuild@1
-  displayName: 'Build Solution (3/10)'
+  displayName: 'Build Solution (3/11)'
   inputs:
     solution: '$(solution)'
     vsVersion: '17.0'
@@ -46,15 +43,31 @@ steps:
     logFileVerbosity: 'detailed'
 
 #################################################
+# Set Short Commit ID from Build.SourceVersion #
+################################################
+- task: CmdLine@2
+  displayName: 'Set Short Commit ID (4/11)'
+  name: SetShortCommit
+  inputs:
+    script: |
+      @echo off
+      rem Get the full commit ID from the environment variable
+      set "FULL_COMMIT=%BUILD_SOURCEVERSION%"
+      rem Extract the first 7 characters as the short commit ID
+      set "SHORT_COMMIT=%FULL_COMMIT:~0,7%"
+      echo Short commit is: %SHORT_COMMIT%
+      echo ##vso[task.setvariable variable=shortCommit;isOutput=true]%SHORT_COMMIT%
+
+#################################################
 # Step 4: Archive Files to ZIP (ArchiveFiles@2) #
 #################################################
 - task: ArchiveFiles@2
-  displayName: 'Archive Files to ZIP (4/10)'
+  displayName: 'Archive bin Folder to ZIP (4/11)'
   inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)'
+    rootFolderOrFile: '$(Build.SourcesDirectory)\bin'
     includeRootFolder: true
     archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.CommitId).zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/Build_$(SetShortCommit.shortCommit).zip'
     replaceExistingArchive: true
     verbose: true
 
@@ -62,13 +75,14 @@ steps:
 # Step 5: Calculate ZIP File Hash #
 ###################################
 - task: CmdLine@2
-  displayName: 'Calculate ZIP File Hash (5/10)'
+  displayName: 'Calculate ZIP File Hash (5/11)'
   inputs:
     script: |
       @echo off
       setlocal EnableDelayedExpansion
-      rem Define the full path of the ZIP file from Step 8
-      set "ZIP_PATH=$(Build.ArtifactStagingDirectory)\$(Build.CommitId).zip"
+      rem Use the short commit from the output variable
+      set "SHORT_COMMIT=$(SetShortCommit.shortCommit)"
+      set "ZIP_PATH=$(Build.ArtifactStagingDirectory)\Build_%SHORT_COMMIT%.zip"
       echo Calculating SHA-256 hash for ZIP file: %ZIP_PATH%
       for /F "skip=1 tokens=1" %%Z in ('certutil -hashfile "%ZIP_PATH%" SHA256 ^| findstr /V "CertUtil"') do (
           set "ZIP_HASH=%%Z"
@@ -76,9 +90,9 @@ steps:
       )
       :gotHash
       echo ZIP file hash: !ZIP_HASH!
-      rem Create a hash file in the artifact staging directory with the commit ID on the first line
-      echo $(Build.CommitId) > "$(Build.ArtifactStagingDirectory)\$(Build.CommitId)_hashes.txt"
-      echo !ZIP_HASH! >> "$(Build.ArtifactStagingDirectory)\$(Build.CommitId)_hashes.txt"
+      rem Create a hash file in the artifact staging directory with the short commit on the first line
+      echo %SHORT_COMMIT% > "$(Build.ArtifactStagingDirectory)\Build_%SHORT_COMMIT%_hashes.txt"
+      echo !ZIP_HASH! >> "$(Build.ArtifactStagingDirectory)\Build_%SHORT_COMMIT%_hashes.txt"
       endlocal
       echo Hash calculation completed.
 
@@ -86,7 +100,7 @@ steps:
 # Step 6: Push NuGet Packages to Azure Artifacts Feed #
 #######################################################
 - task: NuGetCommand@2
-  displayName: 'Push NuGet Packages to Azure Artifacts (6/10)'
+  displayName: 'Push NuGet Packages to Azure Artifacts (6/11)'
   inputs:
     command: 'push'
     packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
@@ -98,7 +112,7 @@ steps:
 # Step 7: Publish Build Artifacts (Pipeline Output Folder) #
 ############################################################
 - task: PublishBuildArtifacts@1
-  displayName: 'Publish Build Artifacts (Pipeline Folder) (7/10)'
+  displayName: 'Publish Build Artifacts (Pipeline Folder) (7/11)'
   inputs:
     PathtoPublish: '$(Build.SourcesDirectory)'
     ArtifactName: 'drop'
@@ -108,26 +122,25 @@ steps:
 # Step 8: Create GitHub Release (Pre-release Tag) #
 ###################################################
 - task: GitHubRelease@1
-  displayName: 'Create GitHub Release (Pre-release) (8/10)'
   inputs:
     gitHubConnection: 'zombi-dev-org'
     repositoryName: '$(Build.Repository.Name)'
     action: 'create'
     target: '$(Build.SourceVersion)'
     tagSource: 'userSpecifiedTag'
-    tag: 'Pre-release'
-    title: 'Commit $(Build.SourceVersion)'
-    releaseNotesSource: 'inline'
+    tag: 'Commits - latest'
+    title: 'Commit $(SetShortCommit.shortCommit)'
     assets: '$(Build.ArtifactStagingDirectory)/**/*'
     isPreRelease: true
-    changeLogCompareToRelease: 'lastNonDraftRelease'
+    changeLogCompareToRelease: 'lastNonDraftReleaseByTag'
+    changeLogCompareToReleaseTag: 'Commits - latest'
     changeLogType: 'commitBased'
 
 #######################################################
 # Step 9: Publish Pipeline Artifact (Build Workspace) #
 #######################################################
 - task: PublishPipelineArtifact@1
-  displayName: 'Publish Pipeline Artifact (9/10)'
+  displayName: 'Publish Pipeline Artifact (9/11)'
   inputs:
     targetPath: '$(Pipeline.Workspace)'
     artifact: '$(Build.SourceVersion) - $(Build.BuildId)'
@@ -137,23 +150,26 @@ steps:
 # Step 10: Update README.md with Build Info and Commit Changes #
 ################################################################
 - task: CmdLine@2
-  displayName: 'Update README.md with Build Info (10/10)'
+  displayName: 'Update README.md with Build Info (10/11)'
   inputs:
     script: |
       @echo off
       echo Updating README.md with dynamic build information...
       
-      rem Retrieve pipeline variables for commit details
-      set "COMMIT_ID=$(Build.SourceVersion)"
-      set "COMMIT_LINK=https://github.com/zombi-dev-org/Project-Multiground/commit/%COMMIT_ID%"
+      rem Use the short commit from the output variable
+      set "SHORT_COMMIT=$(SetShortCommit.shortCommit)"
+      set "COMMIT_LINK=https://github.com/zombi-dev-org/Project-Multiground/commit/%SHORT_COMMIT%"
       set "ARTIFACT_LINK=https://github.com/zombi-dev-org/Project-Multiground/actions/runs/$(Build.BuildId)"
       set "RELEASE_LINK=https://github.com/zombi-dev-org/Project-Multiground/releases/tag/Pre-release"
       
       rem Use PowerShell inline commands to update README.md placeholders
-      powershell -Command "(Get-Content README.md) -replace '\[\[latest commit ID\]\]', '%COMMIT_ID%' | Set-Content README.md"
+      powershell -Command "(Get-Content README.md) -replace '\[\[latest commit ID\]\]', '%SHORT_COMMIT%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit link\]\]', '%COMMIT_LINK%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit artifact''s link\]\]', '%ARTIFACT_LINK%' | Set-Content README.md"
       powershell -Command "(Get-Content README.md) -replace '\[\[latest commit release link\]\]', '%RELEASE_LINK%' | Set-Content README.md"
+      
+      echo Checking out branch: $(Build.SourceBranchName)
+      git checkout $(Build.SourceBranchName)
       
       rem Use built-in variables for email and user
       set "EMAIL=$(Build.RequestedForEmail)"
@@ -164,8 +180,8 @@ steps:
       git config --global user.name "%USER%"
       
       git add README.md
-      git commit -m "Update README.md for %COMMIT_ID%"
-      git push origin HEAD:latest
+      git commit -m "Update README.md for %SHORT_COMMIT%"
+      git push origin $(Build.SourceBranchName)
       
       echo README.md updated and changes pushed.
       echo Done!
