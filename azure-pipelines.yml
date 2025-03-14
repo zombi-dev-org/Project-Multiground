@@ -114,7 +114,10 @@ steps:
     repositoryName: '$(Build.Repository.Name)'
     action: 'create'
     target: '$(Build.SourceVersion)'
+    tagSource: 'userSpecifiedTag'
+    tag: 'Pre-release'
     title: 'Commit $(Build.SourceVersion)'
+    releaseNotesSource: 'inline'
     assets: '$(Build.ArtifactStagingDirectory)/**/*'
     isPreRelease: true
     changeLogCompareToRelease: 'lastNonDraftRelease'
